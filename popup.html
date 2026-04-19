@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 280px;
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 16px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      color: #e94560;
+      letter-spacing: 1px;
+    }
+
+    .header p {
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .speed-display {
+      text-align: center;
+      font-size: 36px;
+      font-weight: bold;
+      color: #e94560;
+      margin: 10px 0;
+      text-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+    }
+
+    .slider-container {
+      margin: 12px 0;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #16213e, #e94560);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #e94560;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(233, 69, 96, 0.6);
+    }
+
+    .presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin: 12px 0;
+    }
+
+    .preset-btn {
+      padding: 8px 0;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #16213e;
+      color: #ccc;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .preset-btn:hover {
+      background: #e94560;
+      color: #fff;
+      border-color: #e94560;
+    }
+
+    .preset-btn.active {
+      background: #e94560;
+      color: #fff;
+      border-color: #e94560;
+      box-shadow: 0 0 10px rgba(233, 69, 96, 0.4);
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #16213e;
+      color: #e94560;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid #e94560;
+    }
+
+    .reset-btn:hover {
+      background: #e94560;
+      color: #fff;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 11px;
+      color: #4ecca3;
+    }
+
+    .skip-section {
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid #2a2a4a;
+      border-radius: 6px;
+      background: #16213e;
+    }
+
+    .skip-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .skip-toggle label {
+      font-size: 12px;
+      color: #ccc;
+      font-weight: 600;
+    }
+
+    .skip-toggle .sublabel {
+      font-size: 9px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .switch {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .switch .slider-track {
+      position: absolute;
+      inset: 0;
+      background: #333;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .switch .slider-track::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 3px;
+      top: 3px;
+      background: #888;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .switch input:checked + .slider-track {
+      background: #e94560;
+    }
+
+    .switch input:checked + .slider-track::before {
+      transform: translateX(18px);
+      background: #fff;
+    }
+
+    .skip-status {
+      text-align: center;
+      font-size: 10px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #2a2a4a;
+    }
+
+    .footer span {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .discord-link {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      color: #5865F2;
+      font-size: 11px;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+
+    .discord-link:hover {
+      opacity: 0.8;
+    }
+
+    .discord-link svg {
+      width: 16px;
+      height: 16px;
+      fill: #5865F2;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SPEED CANVAS</h1>
+    <p>Controle de velocidade de animações</p>
+  </div>
+
+  <div class="speed-display" id="speedDisplay">1.0x</div>
+
+  <div class="slider-container">
+    <input type="range" id="speedSlider" min="0.5" max="10" step="0.5" value="1">
+  </div>
+
+  <div class="presets">
+    <button class="preset-btn active" data-speed="1">1x</button>
+    <button class="preset-btn" data-speed="1.5">1.5x</button>
+    <button class="preset-btn" data-speed="2">2x</button>
+    <button class="preset-btn" data-speed="2.5">2.5x</button>
+    <button class="preset-btn" data-speed="3">3x</button>
+    <button class="preset-btn" data-speed="5">5x</button>
+    <button class="preset-btn" data-speed="7">7x</button>
+    <button class="preset-btn" data-speed="10">10x</button>
+  </div>
+
+  <button class="reset-btn" id="resetBtn">RESETAR (1x)</button>
+
+  <div class="status" id="status">Normal</div>
+
+  <div class="skip-section">
+    <div class="skip-toggle">
+      <div>
+        <label>Auto-Skip Animações</label>
+        <div class="sublabel">Clica automaticamente no canvas para avançar</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="skipToggle">
+        <span class="slider-track"></span>
+      </label>
+    </div>
+    <div class="skip-status" id="skipStatus">Desativado</div>
+  </div>
+
+  <div class="footer">
+    <span>by markizin</span>
+    <a href="https://discord.gg/b9ZJrypBra" target="_blank" class="discord-link">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+      </svg>
+      Discord
+    </a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
