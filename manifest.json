@@ -1,10 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Canvas Speed Controller Plus",
-  "version": "3.0",
+  "version": "3.3",
   "description": "Controle a velocidade de animações em jogos HTML5 e conteúdo canvas - by markizin",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "webNavigation", "tabs"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
