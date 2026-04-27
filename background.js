@@ -273,7 +273,7 @@ function injectFloatingControl(enabled, currentSpeed) {
     var header = document.createElement("div");
     header.style.cssText = "display:flex;align-items:center;justify-content:space-between;cursor:grab;padding:2px 0 4px 0;";
     var title = document.createElement("span");
-    title.textContent = "SPEED BET";
+    title.textContent = "CANVAS SPEED";
     title.style.cssText = "font-size:10px;font-weight:700;letter-spacing:0.25em;color:#A855F7;";
     header.appendChild(title);
     var closeBtn = document.createElement("button");
