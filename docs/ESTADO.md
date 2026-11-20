@@ -32,6 +32,12 @@ Extensão Chrome (MV3) que acelera/desacelera jogos HTML5/canvas hookando relóg
 - Modo de aceleração por site (`speedMode`): `clock` (padrão, só relógio) ou `engine` (só timeScale, relógio real).
 - Estilo `.sublabel` global no popup (textos de ajuda saíam em fonte grande).
 
+## Publicação (a cada versão)
+1. Merge na `main` deste repo + push; `npm run build`; `gh release create vX.Y canvas-speed.zip`.
+2. Site (Vercel, deploy automático no push): repo GitHub `MarcBuzatto/canvas-speed-controller-plus` —
+   copiar o ZIP para `download/canvas-speed.zip`, atualizar "VERSÃO X.Y" e textos em `index.html`/`privacy.html`, push na `main`.
+- v3.7 publicada em 2026-11-20 (release + site).
+
 ## Pendências / riscos conhecidos
 - Modo Relógio: engines que limitam o delta por frame (ex.: PIXI `maxElapsedMS` 100 ms) podem não passar de ~6x — usar modo Engine nesses casos. Validar em jogo real.
 - Modo Engine em Phaser/CreateJS praticamente não acelera, e o reset não desfaz `targetFps`/`timingMode`.
