@@ -20,11 +20,21 @@ Extensão para Chrome que controla a velocidade de animações em jogos HTML5 e 
 
 ## ✨ Recursos
 
-- **Velocidade 0.5x a 10x** - Slider preciso + 8 presets rápidos
-- **Auto-Skip Animações** - Modo opcional que clica automaticamente no canvas
+- **Câmera lenta e aceleração (0.25x a 16x)** - Slider, campo de velocidade personalizada e até 8 presets editáveis
+- **Configuração por site** - Cada jogo lembra a própria velocidade; os outros sites não são afetados
+- **Auto-Skip configurável** - Intervalo (100 ms a 10 s) e ponto de clique no canvas, por site
+- **Painel flutuante** - Troque a velocidade e o auto-skip direto na página do jogo
 - **Estado persistente** - Preferências salvas via `chrome.storage.local`
 - **100% privado** - Zero coleta de dados, tudo roda localmente
-- **Ultra leve** - Apenas 27KB
+- **Ultra leve** - Sem dependências
+
+## 🛠️ Desenvolvimento
+
+- `npm test` — testes unitários (node:test, sem dependências)
+- `npm run check` — checagem de sintaxe
+- `npm run build` — gera `canvas-speed.zip` com apenas os arquivos da extensão
+
+Arquitetura e pendências em [`docs/ESTADO.md`](docs/ESTADO.md).
 
 ## 🎮 Engines compatíveis
 

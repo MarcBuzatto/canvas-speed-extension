@@ -2,3 +2,8 @@
 *.log
 backup/
 *.zip.bak
+node_modules/
+*.zip
+*.crx
+*.pem
+.env
