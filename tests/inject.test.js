@@ -192,7 +192,7 @@ test("trocar de engine para relógio restaura a engine e acelera o relógio", ()
   assert.equal(page.performance.now() - p0, 300);
 });
 
-test("trocar de relógio para engine não faz performance.now voltar e zera o Date", () => {
+test("trocar de relógio para engine não faz performance.now voltar", () => {
   const page = createFakePage();
   const ticker = fakePixi(page);
   page.injectCanvasSpeed(5);
@@ -200,7 +200,6 @@ test("trocar de relógio para engine não faz performance.now voltar e zera o Da
   const before = page.performance.now();
   page.injectCanvasSpeed(5, "engine");
   assert.ok(page.performance.now() >= before);
-  assert.equal(page.Date.now(), page.clock.date);
   assert.equal(ticker.speed, 5);
 });
 
@@ -212,4 +211,21 @@ test("modo inválido cai no padrão (relógio)", () => {
   const p0 = page.performance.now();
   page.advance(50);
   assert.equal(page.performance.now() - p0, 100);
+});
+
+test("trocar relógio→engine mantendo a velocidade não faz Date.now voltar", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(5);
+  page.advance(1000);
+  const before = page.Date.now();
+  page.injectCanvasSpeed(5, "engine");
+  assert.ok(page.Date.now() >= before, "Date.now voltou");
+  page.advance(100);
+  assert.equal(page.Date.now() - before, 100);
+});
+
+test("instância antiga (sem modo) já injetada pede para recarregar a aba", () => {
+  const page = createFakePage();
+  page.__CANVAS_SPEED__ = { setSpeed: () => [] };
+  assert.match(page.injectCanvasSpeed(2), /^ERRO:.*recarregue/);
 });

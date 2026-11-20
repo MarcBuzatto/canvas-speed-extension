@@ -18,6 +18,8 @@ function injectCanvasSpeed(speed, mode) {
   try {
     mode = mode === "engine" ? "engine" : "clock";
     if (window.__CANVAS_SPEED__) {
+      // Instância de versão anterior ignoraria o modo e seguiria acelerando relógio + engine.
+      if (window.__CANVAS_SPEED__.mode === undefined) return "ERRO:versão antiga ativa — recarregue a aba";
       var found = window.__CANVAS_SPEED__.setSpeed(speed, mode) || [];
       return "OK:update:" + speed + ":engines=" + found.join(",");
     }
@@ -156,8 +158,9 @@ function injectCanvasSpeed(speed, mode) {
       var hadEngines = enginesActive();
       ctrl.speed = s;
       ctrl.mode = m === "engine" ? "engine" : "clock";
-      // Date.now é relógio de parede: volta ao real. performance.now é monotônico: mantém o offset.
-      if (!isActive()) ctrl.dateOffset = 0;
+      // Date.now é relógio de parede: volta ao real só no reset para 1x (trocar de modo não pode
+      // fazê-lo voltar no tempo). performance.now é monotônico: mantém o offset sempre.
+      if (ctrl.speed === 1) ctrl.dateOffset = 0;
       if (hadEngines && !enginesActive()) resetEngines();
       return enginesActive() ? scanEngines() : [];
     };

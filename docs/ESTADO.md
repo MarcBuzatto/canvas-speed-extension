@@ -34,7 +34,8 @@ Extensão Chrome (MV3) que acelera/desacelera jogos HTML5/canvas hookando relóg
 
 ## Pendências / riscos conhecidos
 - Modo Relógio: engines que limitam o delta por frame (ex.: PIXI `maxElapsedMS` 100 ms) podem não passar de ~6x — usar modo Engine nesses casos. Validar em jogo real.
-- Modo Engine em Phaser/CreateJS praticamente não acelera (só mexe em `targetFps`/`timingMode`).
+- Modo Engine em Phaser/CreateJS praticamente não acelera, e o reset não desfaz `targetFps`/`timingMode`.
+- Após atualizar a extensão, abas já injetadas pedem recarga (instância antiga não conhece o modo).
 - `new Date()` sem argumentos não é acelerado.
 - `setInterval` já agendado mantém o ritmo antigo ao trocar velocidade.
 
