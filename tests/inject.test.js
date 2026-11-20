@@ -84,10 +84,10 @@ test("injetar em 1x não sobrescreve timeScale do jogo", () => {
 test("reset só restaura timeScale de objetos que a extensão alterou", () => {
   const page = createFakePage();
   page.spine = { timeScale: 1 };
-  page.injectCanvasSpeed(2);
+  page.injectCanvasSpeed(2, "engine");
   assert.equal(page.spine.timeScale, 2);
   page.lateObject = { timeScale: 0.25 };
-  page.__CANVAS_SPEED__.setSpeed(1);
+  page.__CANVAS_SPEED__.setSpeed(1, "engine");
   assert.equal(page.spine.timeScale, 1);
   assert.equal(page.lateObject.timeScale, 0.25);
 });
@@ -150,4 +150,66 @@ test("auto-skip substitui instância legada (v3.4) sem duplicar cliques", () => 
   page.injectAutoSkip(true, { intervalMs: 500, x: 50, y: 50 });
   assert.deepEqual(page.cleared, [42]);
   assert.equal(typeof page.__AUTO_SKIP__.click, "function");
+});
+
+function fakePixi(page) {
+  const ticker = { speed: 1 };
+  page.PIXI = { Ticker: { shared: ticker } };
+  return ticker;
+}
+
+test("modo relógio não multiplica de novo pelo speed da engine (sem 4x virar 16x)", () => {
+  const page = createFakePage();
+  const ticker = fakePixi(page);
+  page.injectCanvasSpeed(4);
+  const p0 = page.performance.now();
+  page.advance(100);
+  assert.equal((page.performance.now() - p0) * ticker.speed, 400);
+});
+
+test("modo engine acelera só via engine e mantém o relógio real", () => {
+  const page = createFakePage();
+  const ticker = fakePixi(page);
+  page.injectCanvasSpeed(4, "engine");
+  assert.equal(ticker.speed, 4);
+  const p0 = page.performance.now();
+  const d0 = page.Date.now();
+  page.advance(100);
+  assert.equal(page.performance.now() - p0, 100);
+  assert.equal(page.Date.now() - d0, 100);
+  page.setTimeout(() => {}, 1000);
+  assert.equal(page.timers.at(-1).delay, 1000);
+});
+
+test("trocar de engine para relógio restaura a engine e acelera o relógio", () => {
+  const page = createFakePage();
+  const ticker = fakePixi(page);
+  page.injectCanvasSpeed(3, "engine");
+  page.injectCanvasSpeed(3, "clock");
+  assert.equal(ticker.speed, 1);
+  const p0 = page.performance.now();
+  page.advance(100);
+  assert.equal(page.performance.now() - p0, 300);
+});
+
+test("trocar de relógio para engine não faz performance.now voltar e zera o Date", () => {
+  const page = createFakePage();
+  const ticker = fakePixi(page);
+  page.injectCanvasSpeed(5);
+  page.advance(1000);
+  const before = page.performance.now();
+  page.injectCanvasSpeed(5, "engine");
+  assert.ok(page.performance.now() >= before);
+  assert.equal(page.Date.now(), page.clock.date);
+  assert.equal(ticker.speed, 5);
+});
+
+test("modo inválido cai no padrão (relógio)", () => {
+  const page = createFakePage();
+  const ticker = fakePixi(page);
+  page.injectCanvasSpeed(2, "turbo");
+  assert.equal(ticker.speed, 1);
+  const p0 = page.performance.now();
+  page.advance(50);
+  assert.equal(page.performance.now() - p0, 100);
 });

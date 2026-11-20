@@ -9,10 +9,16 @@ function formatSpeedLabel(speed) {
   return (speed % 1 === 0 ? speed.toFixed(1) : String(speed)) + "x";
 }
 
-function injectCanvasSpeed(speed) {
+/**
+ * mode "clock" (padrão): acelera os relógios da página e não toca em engines.
+ * mode "engine": relógio real; acelera só via timeScale/speed das engines detectadas.
+ * Os dois juntos multiplicariam (4x virava 16x em PIXI/Cocos, que medem o delta pelo relógio).
+ */
+function injectCanvasSpeed(speed, mode) {
   try {
+    mode = mode === "engine" ? "engine" : "clock";
     if (window.__CANVAS_SPEED__) {
-      var found = window.__CANVAS_SPEED__.setSpeed(speed) || [];
+      var found = window.__CANVAS_SPEED__.setSpeed(speed, mode) || [];
       return "OK:update:" + speed + ":engines=" + found.join(",");
     }
 
@@ -24,6 +30,7 @@ function injectCanvasSpeed(speed) {
 
     var ctrl = {
       speed: speed,
+      mode: mode,
       lastPerf: _perfNow.call(performance),
       lastDate: _DateNow.call(Date),
       perfOffset: 0,
@@ -33,20 +40,22 @@ function injectCanvasSpeed(speed) {
       rawSetInterval: _setInterval
     };
 
-    function isActive() { return ctrl.speed !== 1; }
+    function clockSpeed() { return ctrl.mode === "clock" ? ctrl.speed : 1; }
+    function isActive() { return clockSpeed() !== 1; }
+    function enginesActive() { return ctrl.mode === "engine" && ctrl.speed !== 1; }
 
     function sync() {
       var np = _perfNow.call(performance);
       var nd = _DateNow.call(Date);
-      ctrl.perfOffset += (np - ctrl.lastPerf) * (ctrl.speed - 1);
-      ctrl.dateOffset += (nd - ctrl.lastDate) * (ctrl.speed - 1);
+      ctrl.perfOffset += (np - ctrl.lastPerf) * (clockSpeed() - 1);
+      ctrl.dateOffset += (nd - ctrl.lastDate) * (clockSpeed() - 1);
       ctrl.lastPerf = np;
       ctrl.lastDate = nd;
     }
 
     function scaleArgs(args) {
       var out = Array.prototype.slice.call(args);
-      out[1] = Math.max(1, Math.floor((out[1] || 0) / ctrl.speed));
+      out[1] = Math.max(1, Math.floor((out[1] || 0) / clockSpeed()));
       return out;
     }
 
@@ -142,19 +151,19 @@ function injectCanvasSpeed(speed) {
       ctrl.touched = [];
     }
 
-    ctrl.setSpeed = function(s) {
+    ctrl.setSpeed = function(s, m) {
       sync();
-      var wasActive = isActive();
+      var hadEngines = enginesActive();
       ctrl.speed = s;
-      if (isActive()) return scanEngines();
+      ctrl.mode = m === "engine" ? "engine" : "clock";
       // Date.now é relógio de parede: volta ao real. performance.now é monotônico: mantém o offset.
-      ctrl.dateOffset = 0;
-      if (wasActive) resetEngines();
-      return [];
+      if (!isActive()) ctrl.dateOffset = 0;
+      if (hadEngines && !enginesActive()) resetEngines();
+      return enginesActive() ? scanEngines() : [];
     };
 
-    var engineResult = isActive() ? scanEngines() : [];
-    _setInterval.call(window, function() { if (isActive()) scanEngines(); }, 1000);
+    var engineResult = enginesActive() ? scanEngines() : [];
+    _setInterval.call(window, function() { if (enginesActive()) scanEngines(); }, 1000);
 
     window.__CANVAS_SPEED__ = ctrl;
     return "OK:inject:" + speed + ":engines=" + engineResult.join(",");
