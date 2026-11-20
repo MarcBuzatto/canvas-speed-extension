@@ -21,6 +21,12 @@ Extensão Chrome (MV3) que acelera/desacelera jogos HTML5/canvas hookando relóg
 - Background valida mensagens (painel ativo, frame topo, velocidade finita e limitada).
 - Vazamento de listeners do painel corrigido; acessibilidade básica no popup.
 
+## Feito (2026-11-20, v3.6)
+- Velocidade personalizada (campo numérico 0.25–16) no popup.
+- Presets editáveis (globais, chave `settings`, até 8) — refletidos no popup e no painel flutuante.
+- Auto-skip configurável por site: intervalo (100–10000 ms) e ponto de clique em % do canvas.
+- Fechar o painel reseta velocidade/toggles, mas preserva a config do auto-skip.
+
 ## Pendências / riscos conhecidos
 - Possível aceleração "ao quadrado" em engines com `timeScale` (Cocos/PIXI) — hook de tempo + timeScale somam. Validar num jogo real.
 - `new Date()` sem argumentos não é acelerado.
