@@ -13,6 +13,14 @@ function createFakePage() {
   const clock = { perf: 1000, date: 1_700_000_000_000 };
   const timers = [];
   const rafCallbacks = [];
+  const cleared = [];
+
+  class FakeEvent {
+    constructor(type, init) {
+      this.type = type;
+      this.init = init;
+    }
+  }
 
   function Performance() {}
   Performance.prototype.now = function () {
@@ -22,6 +30,8 @@ function createFakePage() {
   const ctx = {
     clock,
     timers,
+    cleared,
+    MouseEvent: FakeEvent,
     rafCallbacks,
     Performance,
     performance: new Performance(),
@@ -35,7 +45,7 @@ function createFakePage() {
       return timers.length;
     },
     clearTimeout: () => {},
-    clearInterval: () => {},
+    clearInterval: (id) => cleared.push(id),
     requestAnimationFrame: (cb) => {
       rafCallbacks.push(cb);
       return rafCallbacks.length;

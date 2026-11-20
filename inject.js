@@ -163,33 +163,60 @@ function injectCanvasSpeed(speed) {
   }
 }
 
-function injectAutoSkip(enabled) {
+function injectAutoSkip(enabled, options) {
   try {
-    if (window.__AUTO_SKIP__) {
-      window.__AUTO_SKIP__.enabled = enabled;
-      return "OK:" + (enabled ? "on" : "off");
+    var opts = options || {};
+    var intervalMs = typeof opts.intervalMs === "number" && opts.intervalMs >= 50 ? opts.intervalMs : 500;
+    var px = typeof opts.x === "number" ? Math.min(100, Math.max(0, opts.x)) : 50;
+    var py = typeof opts.y === "number" ? Math.min(100, Math.max(0, opts.y)) : 50;
+    var skip = window.__AUTO_SKIP__;
+
+    // Instância da v3.4 (sem .click) continuaria clicando em paralelo: cancela e recria.
+    if (skip && typeof skip.click !== "function") {
+      if (skip.intervalId !== undefined && skip.intervalId !== null) clearInterval(skip.intervalId);
+      skip.enabled = false;
+      skip = null;
+      window.__AUTO_SKIP__ = null;
     }
-    if (!enabled) return "OK:off";
-    var skip = { enabled: true };
-    function doSkip() {
-      var canvas = document.querySelector("canvas");
-      if (!canvas) return;
-      var rect = canvas.getBoundingClientRect();
-      var x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
-      // Só clique/touch no centro do canvas: teclado (espaço) iniciaria nova rodada em alguns jogos.
-      canvas.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
-      canvas.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
-      canvas.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
-      try {
-        var t = new Touch({ identifier: 1, target: canvas, clientX: x, clientY: y });
-        canvas.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [t], targetTouches: [t], changedTouches: [t] }));
-        canvas.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], targetTouches: [], changedTouches: [t] }));
-      } catch(e) {}
+
+    if (!skip) {
+      if (!enabled) return "OK:off";
+      skip = { enabled: false, intervalMs: 0, x: 50, y: 50, timerId: null };
+      skip.click = function() {
+        var canvas = document.querySelector("canvas");
+        if (!canvas) return;
+        var rect = canvas.getBoundingClientRect();
+        var x = rect.left + rect.width * skip.x / 100;
+        var y = rect.top + rect.height * skip.y / 100;
+        // Só clique/touch no canvas: teclado (espaço) iniciaria nova rodada em alguns jogos.
+        canvas.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        canvas.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        canvas.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        try {
+          var t = new Touch({ identifier: 1, target: canvas, clientX: x, clientY: y });
+          canvas.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [t], targetTouches: [t], changedTouches: [t] }));
+          canvas.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], targetTouches: [], changedTouches: [t] }));
+        } catch(e) {}
+      };
+      window.__AUTO_SKIP__ = skip;
     }
-    // Usa o setInterval original: com o hook ativo, 10x viraria um clique a cada 50ms.
-    var rawSetInterval = (window.__CANVAS_SPEED__ && window.__CANVAS_SPEED__.rawSetInterval) || window.setInterval;
-    rawSetInterval.call(window, function() { if (skip.enabled) doSkip(); }, 500);
-    window.__AUTO_SKIP__ = skip;
+
+    skip.enabled = enabled;
+    skip.x = px;
+    skip.y = py;
+
+    if (!enabled) {
+      if (skip.timerId !== null) { clearInterval(skip.timerId); skip.timerId = null; }
+      return "OK:off";
+    }
+
+    if (skip.timerId === null || skip.intervalMs !== intervalMs) {
+      if (skip.timerId !== null) clearInterval(skip.timerId);
+      // setInterval original: com o hook ativo, 10x viraria um clique 10x mais frequente.
+      var rawSetInterval = (window.__CANVAS_SPEED__ && window.__CANVAS_SPEED__.rawSetInterval) || window.setInterval;
+      skip.timerId = rawSetInterval.call(window, function() { if (skip.enabled) skip.click(); }, intervalMs);
+      skip.intervalMs = intervalMs;
+    }
     return "OK:on";
   } catch(e) {
     return "ERRO:" + e.message;
@@ -269,7 +296,7 @@ function injectHUD(speed) {
   }
 }
 
-function injectFloatingControl(enabled, currentSpeed, autoSkipActive) {
+function injectFloatingControl(enabled, currentSpeed, autoSkipActive, presets) {
   try {
     var PANEL_ID = "__csp_floating_panel__";
     var ACTIVE_BG = "linear-gradient(135deg, #A855F7, #06B6D4)";
@@ -301,6 +328,35 @@ function injectFloatingControl(enabled, currentSpeed, autoSkipActive) {
       }
     }
 
+    var presetList = Array.isArray(presets) && presets.length ? presets : [1, 1.5, 2, 2.5, 3, 5, 7, 10];
+
+    function post(payload) {
+      payload.__csp_source = "panel";
+      try { window.postMessage(payload, "*"); } catch(e) {}
+    }
+
+    function buildGrid(root, grid) {
+      while (grid.firstChild) grid.removeChild(grid.firstChild);
+      grid.setAttribute("data-csp-presets", presetList.join(","));
+      presetList.forEach(function(p) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = p + "x";
+        btn.setAttribute("data-csp-speed", String(p));
+        btn.style.cssText = [
+          "padding:8px 0", "border:1px solid rgba(255,255,255,0.08)",
+          "border-radius:8px", "font-size:11px", "font-weight:700",
+          "font-family:inherit", "cursor:pointer", "transition:all 0.15s"
+        ].join(";");
+        btn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          paintPresets(root, p);
+          post({ action: "speedChange", speed: p });
+        });
+        grid.appendChild(btn);
+      });
+    }
+
     function teardown() {
       if (window.__CSP_PANEL_CLEANUP__) {
         try { window.__CSP_PANEL_CLEANUP__(); } catch(e) {}
@@ -315,14 +371,13 @@ function injectFloatingControl(enabled, currentSpeed, autoSkipActive) {
     }
 
     if (existing) {
+      var existingGrid = existing.querySelector("[data-csp-presets]");
+      if (existingGrid && existingGrid.getAttribute("data-csp-presets") !== presetList.join(",")) {
+        buildGrid(existing, existingGrid);
+      }
       paintPresets(existing, currentSpeed);
       paintSkip(existing, autoSkipActive);
       return "OK:panel_updated";
-    }
-
-    function post(payload) {
-      payload.__csp_source = "panel";
-      try { window.postMessage(payload, "*"); } catch(e) {}
     }
 
     var panel = document.createElement("div");
@@ -384,23 +439,7 @@ function injectFloatingControl(enabled, currentSpeed, autoSkipActive) {
 
     var grid = document.createElement("div");
     grid.style.cssText = "display:grid;grid-template-columns:repeat(4, 1fr);gap:5px;";
-    [1, 1.5, 2, 2.5, 3, 5, 7, 10].forEach(function(p) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = p + "x";
-      btn.setAttribute("data-csp-speed", String(p));
-      btn.style.cssText = [
-        "padding:8px 0", "border:1px solid rgba(255,255,255,0.08)",
-        "border-radius:8px", "font-size:11px", "font-weight:700",
-        "font-family:inherit", "cursor:pointer", "transition:all 0.15s"
-      ].join(";");
-      btn.addEventListener("click", function(e) {
-        e.stopPropagation();
-        paintPresets(panel, p);
-        post({ action: "speedChange", speed: p });
-      });
-      grid.appendChild(btn);
-    });
+    buildGrid(panel, grid);
     panel.appendChild(grid);
 
     var skipRow = document.createElement("div");

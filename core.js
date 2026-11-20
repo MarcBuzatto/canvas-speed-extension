@@ -8,16 +8,31 @@
 
 var MIN_SPEED = 0.25;
 var MAX_SPEED = 16;
+var MIN_SKIP_INTERVAL = 100;
+var MAX_SKIP_INTERVAL = 10000;
+var MAX_PRESETS = 8;
+var DEFAULT_PRESETS = [1, 1.5, 2, 2.5, 3, 5, 7, 10];
 var SITE_KEY_PREFIX = "site:";
+var SETTINGS_KEY = "settings";
 var LEGACY_STORAGE_KEYS = ["speed", "autoSkip", "floatingPanel"];
 
 function defaultSiteState() {
-  return { speed: 1, autoSkip: false, floatingPanel: false };
+  return { speed: 1, autoSkip: false, floatingPanel: false, skipIntervalMs: 500, skipX: 50, skipY: 50 };
 }
 
 function clampSpeed(value) {
   if (typeof value !== "number" || !isFinite(value)) return null;
   return Math.min(MAX_SPEED, Math.max(MIN_SPEED, value));
+}
+
+function clampSkipInterval(value) {
+  if (typeof value !== "number" || !isFinite(value)) return null;
+  return Math.min(MAX_SKIP_INTERVAL, Math.max(MIN_SKIP_INTERVAL, Math.round(value)));
+}
+
+function clampPercent(value) {
+  if (typeof value !== "number" || !isFinite(value)) return null;
+  return Math.min(100, Math.max(0, Math.round(value)));
 }
 
 function siteKeyFromUrl(url) {
@@ -34,18 +49,34 @@ function storageKeyForSite(siteKey) {
   return SITE_KEY_PREFIX + siteKey;
 }
 
-function normalizeSiteState(raw) {
-  var state = defaultSiteState();
+// Valores inválidos em `raw` caem no valor de `base` (padrão, se omitido).
+function normalizeSiteState(raw, base) {
+  var state = Object.assign(defaultSiteState(), base || {});
   if (!raw || typeof raw !== "object") return state;
   var speed = clampSpeed(raw.speed);
   if (speed !== null) state.speed = speed;
-  state.autoSkip = raw.autoSkip === true;
-  state.floatingPanel = raw.floatingPanel === true;
+  if (typeof raw.autoSkip === "boolean") state.autoSkip = raw.autoSkip;
+  if (typeof raw.floatingPanel === "boolean") state.floatingPanel = raw.floatingPanel;
+  var interval = clampSkipInterval(raw.skipIntervalMs);
+  if (interval !== null) state.skipIntervalMs = interval;
+  var x = clampPercent(raw.skipX);
+  if (x !== null) state.skipX = x;
+  var y = clampPercent(raw.skipY);
+  if (y !== null) state.skipY = y;
   return state;
 }
 
 function isDefaultSiteState(state) {
-  return state.speed === 1 && !state.autoSkip && !state.floatingPanel;
+  var def = defaultSiteState();
+  return Object.keys(def).every(function(k) { return state[k] === def[k]; });
+}
+
+function needsInjection(state) {
+  return state.speed !== 1 || state.autoSkip || state.floatingPanel;
+}
+
+function skipOptions(state) {
+  return { intervalMs: state.skipIntervalMs, x: state.skipX, y: state.skipY };
 }
 
 async function getSiteState(siteKey) {
@@ -57,11 +88,7 @@ async function getSiteState(siteKey) {
 
 async function setSiteState(siteKey, patch) {
   var current = await getSiteState(siteKey);
-  var next = normalizeSiteState({
-    speed: patch.speed !== undefined && clampSpeed(patch.speed) !== null ? patch.speed : current.speed,
-    autoSkip: patch.autoSkip !== undefined ? patch.autoSkip : current.autoSkip,
-    floatingPanel: patch.floatingPanel !== undefined ? patch.floatingPanel : current.floatingPanel
-  });
+  var next = normalizeSiteState(patch, current);
   if (!siteKey) return next;
   var key = storageKeyForSite(siteKey);
   if (isDefaultSiteState(next)) {
@@ -72,6 +99,49 @@ async function setSiteState(siteKey, patch) {
     await chrome.storage.local.set(obj);
   }
   return next;
+}
+
+function normalizePresets(list) {
+  var seen = {};
+  var out = [];
+  (Array.isArray(list) ? list : []).forEach(function(v) {
+    if (typeof v !== "number" || !isFinite(v) || v < MIN_SPEED || v > MAX_SPEED) return;
+    var rounded = Math.round(v * 100) / 100;
+    if (seen[rounded]) return;
+    seen[rounded] = true;
+    out.push(rounded);
+  });
+  out.sort(function(x, y) { return x - y; });
+  out = out.slice(0, MAX_PRESETS);
+  return out.length ? out : DEFAULT_PRESETS.slice();
+}
+
+// Aceita "1, 1.5 2;3" (vírgula separa valores; decimal usa ponto). Tokens
+// inválidos são devolvidos para a UI avisar o usuário.
+function parsePresets(text) {
+  var tokens = String(text || "").split(/[\s,;]+/).filter(Boolean);
+  var values = [];
+  var invalid = [];
+  tokens.forEach(function(tok) {
+    var n = Number(tok);
+    if (!isFinite(n) || n < MIN_SPEED || n > MAX_SPEED) invalid.push(tok);
+    else values.push(n);
+  });
+  return { presets: values.length ? normalizePresets(values) : [], invalid: invalid };
+}
+
+async function getSettings() {
+  var data = await chrome.storage.local.get([SETTINGS_KEY]);
+  var raw = data[SETTINGS_KEY] || {};
+  return { presets: normalizePresets(raw.presets) };
+}
+
+async function setPresets(list) {
+  var presets = normalizePresets(list);
+  var obj = {};
+  obj[SETTINGS_KEY] = { presets: presets };
+  await chrome.storage.local.set(obj);
+  return presets;
 }
 
 function summarizeInjection(results) {
@@ -107,7 +177,7 @@ async function runScript(options) {
  */
 async function applySiteState(tabId, state, frameId) {
   var allFrames = frameId === undefined || frameId === null;
-  if (!allFrames && isDefaultSiteState(state)) return summarizeInjection([]);
+  if (!allFrames && !needsInjection(state)) return summarizeInjection([]);
 
   var target = allFrames ? { tabId: tabId, allFrames: true } : { tabId: tabId, frameIds: [frameId] };
   var isTop = allFrames || frameId === 0;
@@ -122,7 +192,7 @@ async function applySiteState(tabId, state, frameId) {
   }
 
   if (allFrames || state.autoSkip) {
-    await runScript({ target: target, world: "MAIN", func: injectAutoSkip, args: [state.autoSkip] });
+    await runScript({ target: target, world: "MAIN", func: injectAutoSkip, args: [state.autoSkip, skipOptions(state)] });
   }
 
   if (isTop) {
@@ -130,10 +200,11 @@ async function applySiteState(tabId, state, frameId) {
       await runScript({ target: topTarget, world: "MAIN", func: injectHUD, args: [state.speed] });
     }
     if (state.floatingPanel) {
+      var settings = await getSettings();
       await runScript({ target: topTarget, files: ["content-bridge.js"] });
       await runScript({
         target: topTarget, world: "MAIN",
-        func: injectFloatingControl, args: [true, state.speed, state.autoSkip]
+        func: injectFloatingControl, args: [true, state.speed, state.autoSkip, settings.presets]
       });
     } else if (allFrames) {
       await runScript({

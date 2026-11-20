@@ -26,7 +26,7 @@ chrome.webNavigation.onCommitted.addListener(async function(details) {
   var siteKey = await siteKeyForFrame(details.tabId, details.frameId, details.url);
   if (!siteKey) return;
   var state = await getSiteState(siteKey);
-  if (isDefaultSiteState(state)) return;
+  if (!needsInjection(state)) return;
   await applySiteState(details.tabId, state, details.frameId);
 });
 
@@ -36,7 +36,7 @@ chrome.tabs.onUpdated.addListener(async function(tabId, changeInfo, tab) {
   var siteKey = siteKeyFromUrl(tab.url);
   if (!siteKey) return;
   var state = await getSiteState(siteKey);
-  if (isDefaultSiteState(state)) return;
+  if (!needsInjection(state)) return;
   await applySiteState(tabId, state);
 });
 
@@ -61,8 +61,8 @@ async function handlePanelMessage(msg, tabId, siteKey) {
   }
 
   if (msg.action === "panelClosedByUser") {
-    // Fechar o painel pelo × é um reset total do site (velocidade, auto-skip, HUD).
-    state = await setSiteState(siteKey, defaultSiteState());
+    // Fechar o painel pelo × é um reset total do site (velocidade, auto-skip, HUD); a config do auto-skip é mantida.
+    state = await setSiteState(siteKey, { speed: 1, autoSkip: false, floatingPanel: false });
     await applySiteState(tabId, state);
     return { ok: true, reset: true };
   }

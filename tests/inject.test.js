@@ -106,3 +106,48 @@ test("formatSpeedLabel mantém casas decimais consistentes", () => {
   assert.equal(page.formatSpeedLabel(1.5), "1.5x");
   assert.equal(page.formatSpeedLabel(0.5), "0.5x");
 });
+
+function fakeCanvas() {
+  const events = [];
+  return {
+    events,
+    getBoundingClientRect: () => ({ left: 100, top: 50, width: 400, height: 200 }),
+    dispatchEvent: (e) => events.push(e),
+  };
+}
+
+test("auto-skip clica no ponto configurado (em % do canvas)", () => {
+  const page = createFakePage();
+  const canvas = fakeCanvas();
+  page.document.querySelector = () => canvas;
+  page.injectAutoSkip(true, { intervalMs: 500, x: 25, y: 75 });
+  page.timers.find((t) => t.kind === "interval").fn();
+  const click = canvas.events.find((e) => e.type === "click");
+  assert.equal(click.init.clientX, 200);
+  assert.equal(click.init.clientY, 200);
+});
+
+test("auto-skip usa o intervalo configurado e reagenda ao mudar", () => {
+  const page = createFakePage();
+  page.injectAutoSkip(true, { intervalMs: 1500, x: 50, y: 50 });
+  page.injectAutoSkip(true, { intervalMs: 300, x: 50, y: 50 });
+  const intervals = page.timers.filter((t) => t.kind === "interval").map((t) => t.delay);
+  assert.deepEqual(intervals, [1500, 300]);
+  assert.equal(page.cleared.length, 1);
+});
+
+test("desligar auto-skip cancela o intervalo", () => {
+  const page = createFakePage();
+  page.injectAutoSkip(true, { intervalMs: 500, x: 50, y: 50 });
+  page.injectAutoSkip(false);
+  assert.equal(page.cleared.length, 1);
+  assert.equal(page.__AUTO_SKIP__.enabled, false);
+});
+
+test("auto-skip substitui instância legada (v3.4) sem duplicar cliques", () => {
+  const page = createFakePage();
+  page.__AUTO_SKIP__ = { enabled: true, intervalId: 42 };
+  page.injectAutoSkip(true, { intervalMs: 500, x: 50, y: 50 });
+  assert.deepEqual(page.cleared, [42]);
+  assert.equal(typeof page.__AUTO_SKIP__.click, "function");
+});
