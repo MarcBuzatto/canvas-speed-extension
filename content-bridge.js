@@ -1,58 +1,52 @@
 /**
- * Canvas Speed Controller Plus - Content Script Bridge
- * Roda em world: ISOLATED. Ponte entre painel (world: MAIN) e background.
+ * Canvas Speed Controller Plus - Content Script Bridge (world ISOLATED).
+ * Ponte entre o painel flutuante (world MAIN) e o background.
+ * Pode ser carregado duas vezes (content_scripts + executeScript de fallback);
+ * a guarda evita registrar o listener em dobro, o que duplicava cada comando.
  */
+(function() {
+  if (window.__CSP_BRIDGE_READY__) return;
+  window.__CSP_BRIDGE_READY__ = true;
 
-function sendStatus(text, isError) {
-  try {
-    window.postMessage({
-      __csp_source: "status",
-      text: text,
-      error: !!isError
-    }, "*");
-  } catch(e) {}
-}
-
-window.addEventListener("message", function(event) {
-  if (event.source !== window) return;
-  var data = event.data;
-  if (!data || typeof data !== "object") return;
-  if (data.__csp_source !== "panel") return;
-
-  // Evento: usuário clicou num preset
-  if (data.action === "speedChange" && typeof data.speed === "number") {
-    sendStatus("[1/3] bridge OK, enviando...");
+  function sendStatus(text, isError) {
     try {
-      chrome.runtime.sendMessage({
-        action: "speedChangeFromPanel",
-        speed: data.speed
-      }, function(response) {
+      window.postMessage({ __csp_source: "status", text: text, error: !!isError }, "*");
+    } catch(e) {}
+  }
+
+  function forward(message, okText) {
+    try {
+      chrome.runtime.sendMessage(message, function(response) {
         if (chrome.runtime.lastError) {
-          sendStatus("X bridge→bg: " + chrome.runtime.lastError.message.substring(0, 30), true);
+          sendStatus("X " + chrome.runtime.lastError.message.substring(0, 30), true);
           return;
         }
-        if (!response) {
-          sendStatus("X bg: sem resposta", true);
+        if (!response || !response.ok) {
+          sendStatus("X " + ((response && response.error) || "sem resposta").substring(0, 30), true);
           return;
         }
-        if (response.ok) {
-          var engines = response.engines || "?";
-          sendStatus("[3/3] " + response.framesInjected + "f " + engines, false);
-        } else {
-          sendStatus("X bg: " + (response.error ? response.error.substring(0, 25) : "err"), true);
-        }
+        sendStatus(okText(response), false);
       });
-      sendStatus("[2/3] msg enviada ao bg");
     } catch(err) {
-      sendStatus("X sendMessage: " + err.message.substring(0, 25), true);
+      sendStatus("X " + err.message.substring(0, 30), true);
     }
-    return;
   }
 
-  // Evento: usuário fechou painel
-  if (data.action === "panelClosed") {
-    try {
-      chrome.runtime.sendMessage({ action: "panelClosedByUser" });
-    } catch(err) {}
-  }
-});
+  window.addEventListener("message", function(event) {
+    if (event.source !== window) return;
+    var data = event.data;
+    if (!data || typeof data !== "object" || data.__csp_source !== "panel") return;
+
+    if (data.action === "speedChange" && typeof data.speed === "number") {
+      forward({ action: "speedChangeFromPanel", speed: data.speed }, function(r) {
+        return r.frames + " frame(s) " + (r.engines || "sem engine");
+      });
+    } else if (data.action === "autoSkipToggle" && typeof data.enabled === "boolean") {
+      forward({ action: "autoSkipFromPanel", enabled: data.enabled }, function() {
+        return "auto-skip " + (data.enabled ? "ativo" : "off");
+      });
+    } else if (data.action === "panelClosed") {
+      try { chrome.runtime.sendMessage({ action: "panelClosedByUser" }); } catch(err) {}
+    }
+  });
+})();
