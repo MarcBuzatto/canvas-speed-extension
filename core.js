@@ -15,9 +15,10 @@ var DEFAULT_PRESETS = [1, 1.5, 2, 2.5, 3, 5, 7, 10];
 var SITE_KEY_PREFIX = "site:";
 var SETTINGS_KEY = "settings";
 var LEGACY_STORAGE_KEYS = ["speed", "autoSkip", "floatingPanel"];
+var SPEED_MODES = ["clock", "engine"];
 
 function defaultSiteState() {
-  return { speed: 1, autoSkip: false, floatingPanel: false, skipIntervalMs: 500, skipX: 50, skipY: 50 };
+  return { speed: 1, speedMode: "clock", autoSkip: false, floatingPanel: false, skipIntervalMs: 500, skipX: 50, skipY: 50 };
 }
 
 function clampSpeed(value) {
@@ -55,6 +56,7 @@ function normalizeSiteState(raw, base) {
   if (!raw || typeof raw !== "object") return state;
   var speed = clampSpeed(raw.speed);
   if (speed !== null) state.speed = speed;
+  if (SPEED_MODES.indexOf(raw.speedMode) !== -1) state.speedMode = raw.speedMode;
   if (typeof raw.autoSkip === "boolean") state.autoSkip = raw.autoSkip;
   if (typeof raw.floatingPanel === "boolean") state.floatingPanel = raw.floatingPanel;
   var interval = clampSkipInterval(raw.skipIntervalMs);
@@ -187,7 +189,7 @@ async function applySiteState(tabId, state, frameId) {
   if (allFrames || state.speed !== 1) {
     speedResults = await runScript({
       target: target, world: "MAIN", injectImmediately: true,
-      func: injectCanvasSpeed, args: [state.speed]
+      func: injectCanvasSpeed, args: [state.speed, state.speedMode]
     });
   }
 

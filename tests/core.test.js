@@ -84,7 +84,7 @@ test("applySiteState em todos os frames com padrão reseta tudo", async () => {
   const core = loadCore(chrome);
   await core.applySiteState(7, core.defaultSiteState());
   const byName = Object.fromEntries(calls.filter((c) => c.func).map((c) => [c.func.name, [...c.args]]));
-  assert.deepEqual(byName.injectCanvasSpeed, [1]);
+  assert.deepEqual(byName.injectCanvasSpeed, [1, "clock"]);
   assert.equal(byName.injectAutoSkip[0], false);
   assert.deepEqual(byName.injectHUD, [1]);
   assert.equal(byName.injectFloatingControl[0], false);
@@ -174,4 +174,24 @@ test("applySiteState passa intervalo/ponto ao auto-skip e presets ao painel", as
   assert.deepEqual({ ...skip.args[1] }, { intervalMs: 900, x: 20, y: 70 });
   const panel = calls.find((c) => c.func && c.func.name === "injectFloatingControl");
   assert.deepEqual([...panel.args[3]], [1, 4]);
+});
+
+test("speedMode por site: padrão relógio, aceita engine, rejeita lixo", async () => {
+  const { chrome } = createChromeMock();
+  const core = loadCore(chrome);
+  assert.equal(core.defaultSiteState().speedMode, "clock");
+  let state = await core.setSiteState("jogo.com", { speedMode: "engine" });
+  assert.equal(state.speedMode, "engine");
+  state = await core.setSiteState("jogo.com", { speedMode: "turbo" });
+  assert.equal(state.speedMode, "engine");
+  assert.equal((await core.getSiteState("outro.com")).speedMode, "clock");
+});
+
+test("applySiteState repassa o modo de aceleração para o inject", async () => {
+  const { chrome, calls } = createChromeMock();
+  const core = loadCore(chrome);
+  const state = Object.assign(core.defaultSiteState(), { speed: 3, speedMode: "engine" });
+  await core.applySiteState(7, state);
+  const speedCall = calls.find((c) => c.func && c.func.name === "injectCanvasSpeed");
+  assert.deepEqual(Array.from(speedCall.args), [3, "engine"]);
 });
