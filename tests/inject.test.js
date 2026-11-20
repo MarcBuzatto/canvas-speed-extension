@@ -1,0 +1,108 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { createFakePage } = require("./helpers");
+
+test("acelera performance.now e Date.now na velocidade escolhida", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(2);
+  const p0 = page.performance.now();
+  const d0 = page.Date.now();
+  page.advance(100);
+  assert.equal(page.performance.now() - p0, 200);
+  assert.equal(page.Date.now() - d0, 200);
+});
+
+test("câmera lenta (< 1x) realmente desacelera", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(0.5);
+  const p0 = page.performance.now();
+  page.advance(100);
+  assert.equal(page.performance.now() - p0, 50);
+});
+
+test("voltar para 1x não faz performance.now andar para trás", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(3);
+  page.advance(1000);
+  const before = page.performance.now();
+  page.injectCanvasSpeed(1);
+  const after = page.performance.now();
+  assert.ok(after >= before, `relógio voltou: ${before} -> ${after}`);
+  page.advance(100);
+  assert.equal(page.performance.now() - after, 100);
+});
+
+test("timestamp do requestAnimationFrame também não volta ao resetar", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(4);
+  let ts = [];
+  page.requestAnimationFrame((t) => ts.push(t));
+  page.advance(500);
+  page.rafCallbacks.shift()(page.clock.perf);
+  page.injectCanvasSpeed(1);
+  page.requestAnimationFrame((t) => ts.push(t));
+  page.rafCallbacks.shift()(page.clock.perf);
+  assert.ok(ts[1] >= ts[0], `rAF voltou: ${ts[0]} -> ${ts[1]}`);
+});
+
+test("ao resetar, Date.now volta ao relógio real (wall clock)", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(5);
+  page.advance(1000);
+  page.injectCanvasSpeed(1);
+  assert.equal(page.Date.now(), page.clock.date);
+});
+
+test("trocar de velocidade mantém o relógio contínuo", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(2);
+  page.advance(100);
+  const mid = page.performance.now();
+  page.injectCanvasSpeed(4);
+  assert.equal(page.performance.now(), mid);
+  page.advance(100);
+  assert.equal(page.performance.now() - mid, 400);
+});
+
+test("setTimeout escala o delay nos dois sentidos", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(2);
+  page.setTimeout(() => {}, 1000);
+  page.injectCanvasSpeed(0.5);
+  page.setTimeout(() => {}, 1000);
+  const delays = page.timers.filter((t) => t.kind === "timeout").map((t) => t.delay);
+  assert.deepEqual(delays, [500, 2000]);
+});
+
+test("injetar em 1x não sobrescreve timeScale do jogo", () => {
+  const page = createFakePage();
+  page.gameClock = { timeScale: 0 };
+  page.injectCanvasSpeed(1);
+  assert.equal(page.gameClock.timeScale, 0);
+});
+
+test("reset só restaura timeScale de objetos que a extensão alterou", () => {
+  const page = createFakePage();
+  page.spine = { timeScale: 1 };
+  page.injectCanvasSpeed(2);
+  assert.equal(page.spine.timeScale, 2);
+  page.lateObject = { timeScale: 0.25 };
+  page.__CANVAS_SPEED__.setSpeed(1);
+  assert.equal(page.spine.timeScale, 1);
+  assert.equal(page.lateObject.timeScale, 0.25);
+});
+
+test("auto-skip usa o setInterval original mesmo com speed hack ativo", () => {
+  const page = createFakePage();
+  page.injectCanvasSpeed(10);
+  page.injectAutoSkip(true);
+  const skip = page.timers.find((t) => t.kind === "interval" && t.delay === 500);
+  assert.ok(skip, "intervalo de 500ms real não encontrado (foi acelerado)");
+});
+
+test("formatSpeedLabel mantém casas decimais consistentes", () => {
+  const page = createFakePage();
+  assert.equal(page.formatSpeedLabel(2), "2.0x");
+  assert.equal(page.formatSpeedLabel(1.5), "1.5x");
+  assert.equal(page.formatSpeedLabel(0.5), "0.5x");
+});
