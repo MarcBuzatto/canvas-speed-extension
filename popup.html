@@ -61,6 +61,13 @@
 
     .custom-speed input { flex: 1; min-width: 0; }
 
+    .mode-group { border: none; margin: 0; padding: 0; }
+    .mode-group legend { font-size: 11px; color: #ccc; font-weight: 600; padding: 0; margin-bottom: 4px; }
+    .mode-option { display: flex; gap: 6px; align-items: flex-start; font-size: 11px; color: #ddd; margin-top: 4px; cursor: pointer; }
+    .mode-option input { margin: 1px 0 0; accent-color: #4ecca3; }
+    .mode-option .sublabel { font-size: 9px; color: #888; }
+    .mode-option input:focus-visible { outline: 2px solid #4ecca3; outline-offset: 2px; }
+
     input[type="number"], .text-input {
       background: #0f1630;
       color: #eee;
@@ -392,6 +399,18 @@
 
   <!-- Aba Opções -->
   <div class="tab-panel" id="tab-opcoes">
+    <fieldset class="skip-section mode-group" id="speedModeGroup" style="margin-bottom: 10px;">
+      <legend>Modo de aceleração</legend>
+      <label class="mode-option">
+        <input type="radio" name="speedMode" value="clock">
+        <span>Relógio <span class="sublabel">— acelera o tempo da página (funciona na maioria)</span></span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="speedMode" value="engine">
+        <span>Engine <span class="sublabel">— só timeScale (Cocos/PIXI); use se o Relógio travar ou limitar</span></span>
+      </label>
+    </fieldset>
+
     <div class="skip-section">
       <div class="skip-toggle">
         <div>

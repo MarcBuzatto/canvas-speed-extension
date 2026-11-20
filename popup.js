@@ -23,6 +23,7 @@ var presetsForm = document.getElementById("presetsForm");
 var presetsInput = document.getElementById("presetsInput");
 var presetsDefaultBtn = document.getElementById("presetsDefault");
 var presetsStatus = document.getElementById("presetsStatus");
+var speedModeInputs = document.querySelectorAll('input[name="speedMode"]');
 
 var COLOR_ACTIVE = "#e94560";
 var COLOR_OK = "#4ecca3";
@@ -70,6 +71,7 @@ function renderState(state) {
     btn.classList.toggle("active", active);
     btn.setAttribute("aria-pressed", active ? "true" : "false");
   });
+  speedModeInputs.forEach(function(input) { input.checked = input.value === state.speedMode; });
   skipToggle.checked = state.autoSkip;
   skipStatus.textContent = state.autoSkip ? "Auto-skip ativo" : "Desativado";
   skipStatus.style.color = state.autoSkip ? COLOR_ACTIVE : COLOR_OFF;
@@ -94,6 +96,7 @@ function renderInjectionStatus(state, summary) {
 function setControlsDisabled(disabled) {
   [slider, resetBtn, customSpeedInput, skipToggle, skipIntervalInput, skipXInput, skipYInput, floatingToggle]
     .forEach(function(el) { el.disabled = disabled; });
+  speedModeInputs.forEach(function(input) { input.disabled = disabled; });
   customSpeedForm.querySelector("button").disabled = disabled;
   presetsEl.querySelectorAll("button").forEach(function(btn) { btn.disabled = disabled; });
 }
@@ -201,6 +204,9 @@ customSpeedForm.addEventListener("submit", function(e) {
   updateSite({ speed: speed });
 });
 
+speedModeInputs.forEach(function(input) {
+  input.addEventListener("change", function() { if (input.checked) updateSite({ speedMode: input.value }); });
+});
 skipToggle.addEventListener("change", function() { updateSite({ autoSkip: skipToggle.checked }); });
 bindNumberField(skipIntervalInput, clampSkipInterval, "skipIntervalMs");
 bindNumberField(skipXInput, clampPercent, "skipX");
