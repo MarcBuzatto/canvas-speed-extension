@@ -4,7 +4,7 @@
 Extensão Chrome (MV3) que acelera/desacelera jogos HTML5/canvas hookando relógios
 (`performance.now`, `Date.now`, `requestAnimationFrame`, timers) e `timeScale` de engines.
 
-## Arquitetura (v3.5)
+## Arquitetura (v3.7)
 - `inject.js` — funções que rodam na página (world MAIN). Fonte única; autocontidas (serializadas pelo `executeScript`).
 - `core.js` — estado por site (`chrome.storage.local`, chave `site:<host>`), validação de velocidade e `applySiteState`.
 - `background.js` — `importScripts(inject.js, core.js)`; reaplica em frames novos do site e trata comandos do painel.
@@ -27,10 +27,16 @@ Extensão Chrome (MV3) que acelera/desacelera jogos HTML5/canvas hookando relóg
 - Auto-skip configurável por site: intervalo (100–10000 ms) e ponto de clique em % do canvas.
 - Fechar o painel reseta velocidade/toggles, mas preserva a config do auto-skip.
 
+## Feito (2026-11-20, v3.7)
+- Corrigida aceleração "ao quadrado" (4x virava 16x em PIXI/Cocos): hooks de relógio + timeScale multiplicavam.
+- Modo de aceleração por site (`speedMode`): `clock` (padrão, só relógio) ou `engine` (só timeScale, relógio real).
+- Estilo `.sublabel` global no popup (textos de ajuda saíam em fonte grande).
+
 ## Pendências / riscos conhecidos
-- Possível aceleração "ao quadrado" em engines com `timeScale` (Cocos/PIXI) — hook de tempo + timeScale somam. Validar num jogo real.
+- Modo Relógio: engines que limitam o delta por frame (ex.: PIXI `maxElapsedMS` 100 ms) podem não passar de ~6x — usar modo Engine nesses casos. Validar em jogo real.
+- Modo Engine em Phaser/CreateJS praticamente não acelera (só mexe em `targetFps`/`timingMode`).
 - `new Date()` sem argumentos não é acelerado.
 - `setInterval` já agendado mantém o ritmo antigo ao trocar velocidade.
 
 ## Próximo passo
-Validar em jogo real (Cocos/PIXI) e decidir sobre o modo de aceleração; features sugeridas no histórico da conversa.
+Validar os dois modos em jogo real (Cocos/PIXI); considerar acelerar `new Date()` e reagendar `setInterval` ao trocar velocidade.

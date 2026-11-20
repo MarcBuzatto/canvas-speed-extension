@@ -21,6 +21,7 @@ Extensão para Chrome que controla a velocidade de animações em jogos HTML5 e 
 ## ✨ Recursos
 
 - **Câmera lenta e aceleração (0.25x a 16x)** - Slider, campo de velocidade personalizada e até 8 presets editáveis
+- **Dois modos de aceleração** - *Relógio* (acelera o tempo da página, padrão) ou *Engine* (só `timeScale` de Cocos/PIXI e afins), escolhido por site
 - **Configuração por site** - Cada jogo lembra a própria velocidade; os outros sites não são afetados
 - **Auto-Skip configurável** - Intervalo (100 ms a 10 s) e ponto de clique no canvas, por site
 - **Painel flutuante** - Troque a velocidade e o auto-skip direto na página do jogo

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "102",
   "name": "Canvas Speed Controller Plus",
-  "version": "3.6",
+  "version": "3.7",
   "description": "Controle a velocidade de animações em jogos HTML5 e conteúdo canvas - by markizin",
   "permissions": ["activeTab", "scripting", "storage", "webNavigation", "tabs"],
   "host_permissions": ["<all_urls>"],

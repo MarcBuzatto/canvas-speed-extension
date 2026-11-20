@@ -1,6 +1,6 @@
 {
   "name": "canvas-speed-controller-plus",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "private": true,
   "description": "Extensão Chrome para controlar a velocidade de jogos HTML5/canvas",
   "scripts": {
